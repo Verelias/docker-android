@@ -1,40 +1,43 @@
-FROM ubuntu:20.04
+FROM alpine
 
 # Required for Jenv
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/sh", "-c"]
 
 ## Set timezone to UTC by default
 RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 ## Use unicode
-RUN apt-get update && apt-get -y install locales && \
+RUN apk update && apk add locales && \
     locale-gen en_US.UTF-8 || true
 ENV LANG=en_US.UTF-8
 
 ## Install dependencies
-RUN apt-get update && apt-get install --no-install-recommends -y \
-  openjdk-17-jdk \
-  openjdk-11-jdk \
-  openjdk-8-jdk \
+RUN apk update && apk add \
+  bash \
+  openjdk17 \
+  openjdk11 \
+#  openjdk8 \
   git \
   wget \
-  build-essential \
-  zlib1g-dev \
-  libssl-dev \
-  libreadline-dev \
-  unzip \
-  ssh \
+#  build-essential \
+  alpine-sdk \
+  zlib-dev \
+  xxd jq npm \
+  openssl-dev \
+  readline-dev \
+  unzip zip \
+  openssh \
   # Fastlane plugins dependencies
   # - fastlane-plugin-badge (curb)
-  libcurl4 libcurl4-openssl-dev \
+  libcurl curl-dev curl \
   # ruby-setup dependencies
-  libyaml-0-2 \
-  libgmp-dev \
+  yaml-dev \
+  gmp-dev \
   file
 
 ## Clean dependencies
-RUN apt-get clean
-RUN rm -rf /var/lib/apt/lists/*
+RUN apk cache clean
+#RUN rm -rf /var/lib/apt/lists/*
 
 ## Install rbenv
 ENV RBENV_ROOT "/root/.rbenv"
@@ -48,7 +51,7 @@ RUN git clone https://github.com/jenv/jenv.git $JENV_ROOT
 ENV PATH "$PATH:$JENV_ROOT/bin"
 RUN mkdir $JENV_ROOT/versions
 ENV JDK_ROOT "/usr/lib/jvm/"
-RUN jenv add ${JDK_ROOT}/java-8-openjdk-amd64
+#RUN #jenv add ${JDK_ROOT}/java-8-openjdk-amd64
 RUN jenv add ${JDK_ROOT}/java-11-openjdk-amd64
 RUN jenv add ${JDK_ROOT}/java-17-openjdk-amd64
 RUN echo 'export PATH="$JENV_ROOT/bin:$PATH"' >> ~/.bashrc
@@ -61,13 +64,13 @@ RUN git clone https://github.com/rbenv/ruby-build.git "$RBENV_ROOT"/plugins/ruby
 # Install ruby envs
 RUN echo “install: --no-document” > ~/.gemrc
 ENV RUBY_CONFIGURE_OPTS=--disable-install-doc
-RUN rbenv install 3.1.1
-RUN rbenv install 2.7.1
-RUN rbenv install 2.6.6
+RUN rbenv install 3.3.3
+#RUN rbenv install 2.7.1
+#RUN rbenv install 2.6.6
 
 # Setup default ruby env
-RUN rbenv global 3.1.1
-RUN gem install bundler:2.3.7
+RUN rbenv global 3.3.3
+RUN gem install bundler:2.5.14
 
 # Install Google Cloud CLI
 ARG gcloud=false
