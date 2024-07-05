@@ -14,34 +14,36 @@ ENV LANG=en_US.UTF-8
 ## Install dependencies
 RUN apk update && apk add \
   bash \
-  openjdk17 \
   git \
   wget \
-  alpine-sdk \
+  coreutils \
   zlib-dev \
   xxd  \
   jq  \
   npm \
-  openssl-dev \
   readline-dev \
   zip  \
   unzip \
-  openssh  \
   # Build compatibility for glibc which not part of Alpine
-  gcompat \
+  gcompat make build-base \
   # Fastlane plugins dependencies
   # - fastlane-plugin-badge (curb)
   curl \
   # ruby-setup dependencies
   yaml-dev \
   gmp-dev \
-  ruby \
+  ruby ruby-dev \
   nodejs \
   file
 
+RUN echo "https://apk.bell-sw.com/main" | tee -a /etc/apk/repositories
+RUN wget -P /etc/apk/keys/ https://apk.bell-sw.com/info@bell-sw.com-5fea454e.rsa.pub
+RUN apk add bellsoft-java17-lite
+
 ## Clean dependencies
 RUN apk cache clean --purge
-#RUN rm -rf /var/lib/apt/lists/*
+RUN rm -rf /tmp/* && \
+    rm -rf /var/cache/apk/*
 
 ## Install rbenv
 #ENV RBENV_ROOT "/root/.rbenv"
@@ -50,14 +52,14 @@ RUN apk cache clean --purge
 #ENV PATH "$PATH:$RBENV_ROOT/shims"
 
 ## Install jenv
-ENV JENV_ROOT "/.jenv"
-RUN git clone https://github.com/jenv/jenv.git $JENV_ROOT
-ENV PATH "$PATH:$JENV_ROOT/bin"
-RUN mkdir $JENV_ROOT/versions
-ENV JDK_ROOT "/usr/lib/jvm/"
-RUN jenv add ${JDK_ROOT}/java-17-openjdk-amd64
-RUN echo 'export PATH="$JENV_ROOT/bin:$PATH"' >> ~/.bashrc
-RUN echo 'eval "$(jenv init -)"' >> ~/.bashrc
+#ENV JENV_ROOT "/.jenv"
+#RUN git clone https://github.com/jenv/jenv.git $JENV_ROOT
+#ENV PATH "$PATH:$JENV_ROOT/bin"
+#RUN mkdir $JENV_ROOT/versions
+#ENV JDK_ROOT "/usr/lib/jvm/"
+#RUN jenv add ${JDK_ROOT}/java-17-openjdk-amd64
+#RUN echo 'export PATH="$JENV_ROOT/bin:$PATH"' >> ~/.bashrc
+#RUN echo 'eval "$(jenv init -)"' >> ~/.bashrc
 
 # Install ruby-build (rbenv plugin)
 #RUN mkdir -p "$RBENV_ROOT"/plugins
@@ -70,12 +72,16 @@ RUN echo 'eval "$(jenv init -)"' >> ~/.bashrc
 
 # Setup default ruby env
 #RUN rbenv global 3.3.3
-RUN gem install bundler:2.5.14
+RUN gem install bundler:2.5.4
+# Preinstall gems
+ADD Gemfile /Gemfile
+ADD Gemfile.lock /Gemfile.lock
+RUN bundle install --jobs $(nproc)
 
 # Install prettier
 #RUN npm cache clean -f && npm install -g n && n stable
-RUN npm -v
-RUN npx prettier -v
+#RUN npm -v
+#RUN npx prettier -v
 
 # Install Google Cloud CLI
 ARG gcloud=false
