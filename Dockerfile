@@ -1,17 +1,28 @@
 FROM alpine
 
-# Required for Jenv
-SHELL ["/bin/sh", "-c"]
+# Build arguments
+ARG android_ndk=false
+ARG ndk_version=26.1.10909125
+ARG gcloud=false
+ARG gcloud_url=https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz
+ARG gcloud_home=/usr/local/gcloud
+ARG gcloud_install_script=${gcloud_home}/google-cloud-sdk/install.sh
+ARG gcloud_bin=${gcloud_home}/google-cloud-sdk/bin
+ARG sdk_version=commandlinetools-linux-6200805_latest.zip
+ARG android_home=/opt/android/sdk
+ARG android_api=android-34
+ARG android_build_tools=34.0.0
+ARG cmake=3.22.1
 
-## Set timezone to UTC by default
+# Set timezone to UTC by default
 RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
-## Use unicode
+# Use unicode
 RUN apk update && apk add locales && \
     locale-gen en_US.UTF-8 || true
 ENV LANG=en_US.UTF-8
 
-## Install dependencies
+# Install dependencies
 RUN apk update && apk add \
   bash \
   git \
@@ -25,70 +36,36 @@ RUN apk update && apk add \
   zip  \
   unzip \
   # Build compatibility for glibc which not part of Alpine
-  gcompat make build-base \
-  # Fastlane plugins dependencies
-  # - fastlane-plugin-badge (curb)
+  gcompat  \
+  make  \
+  build-base \
   curl \
-  # ruby-setup dependencies
+  # ruby-setup dependencies \
+  ruby \
+  ruby-dev \
   yaml-dev \
   gmp-dev \
-  ruby ruby-dev \
   nodejs \
   file
 
+# Add minimised JDK for build procedures
 RUN echo "https://apk.bell-sw.com/main" | tee -a /etc/apk/repositories
 RUN wget -P /etc/apk/keys/ https://apk.bell-sw.com/info@bell-sw.com-5fea454e.rsa.pub
 RUN apk add bellsoft-java17-lite
 
-## Clean dependencies
+# Clean dependencies
 RUN apk cache clean --purge
 RUN rm -rf /tmp/* && \
     rm -rf /var/cache/apk/*
 
-## Install rbenv
-#ENV RBENV_ROOT "/root/.rbenv"
-#RUN git clone https://github.com/rbenv/rbenv.git $RBENV_ROOT
-#ENV PATH "$PATH:$RBENV_ROOT/bin"
-#ENV PATH "$PATH:$RBENV_ROOT/shims"
-
-## Install jenv
-#ENV JENV_ROOT "/.jenv"
-#RUN git clone https://github.com/jenv/jenv.git $JENV_ROOT
-#ENV PATH "$PATH:$JENV_ROOT/bin"
-#RUN mkdir $JENV_ROOT/versions
-#ENV JDK_ROOT "/usr/lib/jvm/"
-#RUN jenv add ${JDK_ROOT}/java-17-openjdk-amd64
-#RUN echo 'export PATH="$JENV_ROOT/bin:$PATH"' >> ~/.bashrc
-#RUN echo 'eval "$(jenv init -)"' >> ~/.bashrc
-
-# Install ruby-build (rbenv plugin)
-#RUN mkdir -p "$RBENV_ROOT"/plugins
-#RUN git clone https://github.com/rbenv/ruby-build.git "$RBENV_ROOT"/plugins/ruby-build
-
-# Install ruby envs
-#RUN echo "install: --no-document" > ~/.gemrc
-#ENV RUBY_CONFIGURE_OPTS=--disable-install-doc
-#RUN rbenv install 3.3.3
-
-# Setup default ruby env
-#RUN rbenv global 3.3.3
+# Set up bundler and gems
 RUN gem install bundler:2.5.4
 # Preinstall gems
 ADD Gemfile /Gemfile
 ADD Gemfile.lock /Gemfile.lock
 RUN bundle install --jobs $(nproc)
 
-# Install prettier
-#RUN npm cache clean -f && npm install -g n && n stable
-#RUN npm -v
-#RUN npx prettier -v
-
 # Install Google Cloud CLI
-ARG gcloud=false
-ARG gcloud_url=https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz
-ARG gcloud_home=/usr/local/gcloud
-ARG gcloud_install_script=${gcloud_home}/google-cloud-sdk/install.sh
-ARG gcloud_bin=${gcloud_home}/google-cloud-sdk/bin
 ENV PATH=${gcloud_bin}:${PATH}
 RUN if [ "$gcloud" = true ] ; \
   then \
@@ -110,14 +87,7 @@ RUN if [ "$gcloud" = true ] ; \
     echo "Skipping GCloud SDK installation"; \
   fi
 
-## Install Android SDK
-ARG sdk_version=commandlinetools-linux-6200805_latest.zip
-ARG android_home=/opt/android/sdk
-ARG android_api=android-34
-ARG android_build_tools=34.0.0
-ARG android_ndk=false
-ARG ndk_version=26.1.10909125
-ARG cmake=3.22.1
+# Install Android SDK and NDK
 RUN mkdir -p ${android_home} && \
     wget --quiet --output-document=/tmp/${sdk_version} https://dl.google.com/android/repository/${sdk_version} && \
     unzip -q /tmp/${sdk_version} -d ${android_home} && \
@@ -128,7 +98,6 @@ ENV ANDROID_HOME ${android_home}
 ENV PATH=${ANDROID_HOME}/emulator:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools:${PATH}
 
 RUN mkdir ~/.android && echo '### User Sources for Android SDK Manager' > ~/.android/repositories.cfg
-
 RUN yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
 RUN sdkmanager --sdk_root=$ANDROID_HOME --install \
   "platform-tools" \
