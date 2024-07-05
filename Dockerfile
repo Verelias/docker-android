@@ -15,62 +15,67 @@ ENV LANG=en_US.UTF-8
 RUN apk update && apk add \
   bash \
   openjdk17 \
-  openjdk11 \
-#  openjdk8 \
   git \
   wget \
-#  build-essential \
   alpine-sdk \
   zlib-dev \
-  xxd jq npm \
+  xxd  \
+  jq  \
+  npm \
   openssl-dev \
   readline-dev \
-  unzip zip \
-  openssh \
+  zip  \
+  unzip \
+  openssh  \
+  # Build compatibility for glibc which not part of Alpine
+  gcompat \
   # Fastlane plugins dependencies
   # - fastlane-plugin-badge (curb)
-  libcurl curl-dev curl \
+  curl \
   # ruby-setup dependencies
   yaml-dev \
   gmp-dev \
+  ruby \
+  nodejs \
   file
 
 ## Clean dependencies
-RUN apk cache clean
+RUN apk cache clean --purge
 #RUN rm -rf /var/lib/apt/lists/*
 
 ## Install rbenv
-ENV RBENV_ROOT "/root/.rbenv"
-RUN git clone https://github.com/rbenv/rbenv.git $RBENV_ROOT
-ENV PATH "$PATH:$RBENV_ROOT/bin"
-ENV PATH "$PATH:$RBENV_ROOT/shims"
+#ENV RBENV_ROOT "/root/.rbenv"
+#RUN git clone https://github.com/rbenv/rbenv.git $RBENV_ROOT
+#ENV PATH "$PATH:$RBENV_ROOT/bin"
+#ENV PATH "$PATH:$RBENV_ROOT/shims"
 
 ## Install jenv
-ENV JENV_ROOT "$HOME/.jenv"
+ENV JENV_ROOT "/.jenv"
 RUN git clone https://github.com/jenv/jenv.git $JENV_ROOT
 ENV PATH "$PATH:$JENV_ROOT/bin"
 RUN mkdir $JENV_ROOT/versions
 ENV JDK_ROOT "/usr/lib/jvm/"
-#RUN #jenv add ${JDK_ROOT}/java-8-openjdk-amd64
-RUN jenv add ${JDK_ROOT}/java-11-openjdk-amd64
 RUN jenv add ${JDK_ROOT}/java-17-openjdk-amd64
 RUN echo 'export PATH="$JENV_ROOT/bin:$PATH"' >> ~/.bashrc
 RUN echo 'eval "$(jenv init -)"' >> ~/.bashrc
 
 # Install ruby-build (rbenv plugin)
-RUN mkdir -p "$RBENV_ROOT"/plugins
-RUN git clone https://github.com/rbenv/ruby-build.git "$RBENV_ROOT"/plugins/ruby-build
+#RUN mkdir -p "$RBENV_ROOT"/plugins
+#RUN git clone https://github.com/rbenv/ruby-build.git "$RBENV_ROOT"/plugins/ruby-build
 
 # Install ruby envs
-RUN echo “install: --no-document” > ~/.gemrc
-ENV RUBY_CONFIGURE_OPTS=--disable-install-doc
-RUN rbenv install 3.3.3
-#RUN rbenv install 2.7.1
-#RUN rbenv install 2.6.6
+#RUN echo "install: --no-document" > ~/.gemrc
+#ENV RUBY_CONFIGURE_OPTS=--disable-install-doc
+#RUN rbenv install 3.3.3
 
 # Setup default ruby env
-RUN rbenv global 3.3.3
+#RUN rbenv global 3.3.3
 RUN gem install bundler:2.5.14
+
+# Install prettier
+#RUN npm cache clean -f && npm install -g n && n stable
+RUN npm -v
+RUN npx prettier -v
 
 # Install Google Cloud CLI
 ARG gcloud=false
